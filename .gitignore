@@ -4,4 +4,8 @@
 .deployables
 gen
 bin
+libs/armeabi/lib_airi*
+deps/python.egg
+res/raw/filelist.txt
+
 
