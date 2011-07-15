@@ -1,6 +1,6 @@
 import android, time, os, traceback
-droid = android.Android()
-dumpp = droid.environment().result["download"]
+droid = android.API()
+dumpp = droid.environment()["download"]
 os.system("mkdir -p %s" % dumpp)
 dumpf = os.path.join(dumpp, "AIRi-compat-%s.log" % int(time.time()))
 droid.makeToast('Dumping results to %s' % dumpf)
