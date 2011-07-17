@@ -73,8 +73,20 @@ def test_kernel():
 
 
 def test_bluez():
-    import bluetooth
-    dump.write("dev id %s" % bluetooth._bluetooth.hci_devid())
+    import hcilist, bluetooth
+    FORMAT="id: %02i internal: %s\naddr: %s type: %s bus: %s\nflags: %s"
+    for dev in hcilist.devs().itervalues():
+        dump_line(FORMAT % (dev.dev_id, dev.name, dev.bdaddr, 
+            hcilist.TYPES.get(dev.type >> 4, "INVALID"), 
+            hcilist.BUS.get(dev.type & 0x0f, "INVALID"), 
+            hcilist.flags_to_str(dev.flags)))
+        try:
+            bluetooth._bluetooth.hci_open_dev(dev.dev_id)
+        except Exception, err:
+            dump_error(err)
+
+    dump_line("dev id %s" % bluetooth._bluetooth.hci_devid())
+
 
 TESTS=[process_list, test_kernel, test_bluez,]
 
@@ -89,3 +101,5 @@ for test in TESTS:
 
 droid.makeToast("Done")
 dump.close()
+droid.sendEmail("manuel@aircable.net", "AIRi Compat Result Tests", "ATTACHED",
+    "file://%s" % dumpf)
