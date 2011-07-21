@@ -86,9 +86,41 @@ def test_bluez():
             dump_error(err)
 
     dump_line("dev id %s" % bluetooth._bluetooth.hci_devid())
+    try:
+        import ctypes
+        bt=ctypes.CDLL("libbluetooth.so")
+        dump_line("%s" % bt)
+        dump_line("%s" % bt.hci_open_dev(-1))
+    except Exception, err:
+        dump_error(err)
 
+def test_android_api():
+    def scanAndSelect():
+        droid.makeToast("Please wait while scanning the air")
+        dump_line("scanning")
+        devices = droid.bluetoothScan()
+        for d in devices:
+            dump_line("%s" % dev)
+        droid.dialogCreateInput("AIRi Compat", "Please choose one device")
+        for dev in devices:
+            dev["bonded_string"] = "bonded" if dev["bonded"] else ""
+        droid.dialogSetItems(["%(address)s: %(name)s %(bonded_string)s"%d for d in devices])
+        droid.dialogShow()
+        res=droid.dialogGetResponse()
+        if "item" in res:
+            return devices[res["item"]]["address"]
+        return None
+        
+    while True:
+        dev = scanAndSelect()
+        if dev: break
+        droid.makeToast("You need to choose a device!!!")
+        time.sleep(5)
+    dump_line("testing with %s" % dev)
+    dump_line("testing RFCOMM")
+    
 
-TESTS=[process_list, test_kernel, test_bluez,]
+TESTS=[process_list, test_kernel, test_bluez, test_android_api]
 
 for test in TESTS:
     try:
