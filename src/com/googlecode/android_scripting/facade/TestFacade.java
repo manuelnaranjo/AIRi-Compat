@@ -2,6 +2,8 @@ package com.googlecode.android_scripting.facade;
 
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
@@ -11,12 +13,14 @@ import com.googlecode.android_scripting.Constants;
 import com.googlecode.android_scripting.MainThread;
 import com.googlecode.android_scripting.jsonrpc.RpcReceiver;
 import com.googlecode.android_scripting.rpc.Rpc;
+import com.googlecode.android_scripting.rpc.RpcDefault;
 import com.googlecode.android_scripting.rpc.RpcOptional;
 import com.googlecode.android_scripting.rpc.RpcParameter;
 import com.googlecode.android_scripting.bluetooth.BluetoothDiscoveryHelper;
 import com.googlecode.android_scripting.bluetooth.BluetoothDiscoveryHelper.BluetoothDiscoveryListener;
 import com.googlecode.android_scripting.facade.AndroidFacade;
 import com.googlecode.android_scripting.facade.FacadeManager;
+import com.hexad.bluezime.ImprovedBluetoothDevice;
 
 import java.io.IOException;
 import java.util.Map;
@@ -39,6 +43,8 @@ public class TestFacade extends RpcReceiver {
   private Service mService;
   private AndroidFacade mAndroidFacade;
   private BluetoothAdapter mBluetoothAdapter;
+  private BluetoothSocket mSocket;
+  private BluetoothConnection mConnection;
 
   public TestFacade(FacadeManager manager) {
     super(manager);
@@ -61,6 +67,7 @@ public class TestFacade extends RpcReceiver {
 
   @Override
   public void shutdown() {
+	  myBluetoothDisconnect();
   }
   
   @Rpc(description = "Do a Bluetooth scan")
@@ -75,6 +82,45 @@ public class TestFacade extends RpcReceiver {
 	  // that's leaking it own broadcast receiver on successful scan
 	  // complete
 	  return listener.results;
+  }
+  
+  @Rpc(description = "Disconnect any pending Bluetooth connection")
+  public boolean myBluetoothDisconnect(){
+	  if (mSocket == null)
+		  return false;
+	  mConnection.stop();
+	  mSocket = null;
+	  return true;
+  }
+  
+  @Rpc(description="Do an RFcomm Bluetooth connection, igoring service resolving")
+  public boolean myBluetoothConnectRfcomm(
+		  @RpcParameter(name="address") String address, 
+		  @RpcParameter(name="channel") Integer channel
+		  ) throws Exception{
+	  BluetoothDevice mDevice = mBluetoothAdapter.getRemoteDevice(address);
+	  ImprovedBluetoothDevice mIDevice = new ImprovedBluetoothDevice(mDevice);
+	  mSocket = mIDevice.createRfcommSocket(channel);
+	  mSocket.connect();
+	  mConnection = new BluetoothConnection(mSocket);
+	  return true;
+  }
+  
+  @Rpc(description="Do an L2CAP Bluetooth Connection")
+  public boolean myBluetoothConnectL2CAP(
+		  @RpcParameter(name="address") String address,
+		  @RpcParameter(name="channel") Integer channel 
+		  ) throws Exception{
+	  BluetoothDevice mDevice = mBluetoothAdapter.getRemoteDevice(address);
+	  ImprovedBluetoothDevice mIDevice = new ImprovedBluetoothDevice(mDevice);
+	  mSocket = mIDevice.createL2CAPSocket(channel);
+	  mConnection = new BluetoothConnection(mSocket);
+	  return true;
+  }
+  
+  @Rpc(description="Read from Bluetooth Connection")
+  public String myBluetoothRead() throws IOException{
+	  return mConnection.readLine();
   }
   
   private class DiscoveryListener implements BluetoothDiscoveryListener{
