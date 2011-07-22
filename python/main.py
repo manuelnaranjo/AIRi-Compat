@@ -30,32 +30,22 @@ dump_line("Starting tests %s" % dumpf)
 dump_line("uname")
 dump_line(os.popen("uname -a").read())
 
-dump_line("Mounted partitions")
-dump_lines(os.popen("mount").read())
-
-dump_line("Checking sysfs")
-try:
-    sysfs = os.popen("mount | grep sysfs").readlines()[0].split()[2]
-except Exception, err:
-    dump_error(err)
-    sysfs = None
 
 try:
-    dump_line("Environment")
+    dump_line("------- Environment ----------")
     dump_lines(os.popen("/system/bin/toolbox printenv").read())
-    dump_line("Properties")
+    dump_line("------- Properties -----------")
     dump_lines(os.popen("/system/bin/toolbox getprop").read())    
-    dump_line("Kernel modules")
+    dump_line("------- Kernel modules -------")
     dump_lines(os.popen("/system/bin/toolbox lsmod").read())
-    dump_line("netstat")
+    dump_line("------- netstat --------------")
     dump_lines(os.popen("/system/bin/toolbox netstat").read())
-    dump_line("Mounted partitions")
+    dump_line("------- Mounted partitions ---")
     dump_lines(os.popen("/system/bin/toolbox mount").read())
 except Exception, err:
     dump_error(err)
 
 dump_line("------------------------------------------------")
-
 try:
     dump_line("files in / %s" % os.listdir("/"))
     dump_line("files in /proc %s" % os.listdir("/proc"))
@@ -64,6 +54,13 @@ except Exception, err:
     dump_error(err)
 
 dump_line("------------------------------------------------")
+dump_line("Checking sysfs")
+try:
+    sysfs = os.popen("mount | grep sysfs").readlines()[0].split()[2]
+except Exception, err:
+    dump_error(err)
+    sysfs = None
+
 dump_line("Checking procfs")    
 try:
     procfs = os.popen("mount | grep proc").readlines()[0].split()[2]
@@ -92,7 +89,6 @@ dump_line("------------------------------------------------")
 def process_list():
     dump_line("------------------------------------------------")
     dump_line("Process list")
-    dump_lines(os.popen("ps").read())
     dump_lines(os.popen("/system/bin/toolbox ps").read())
 
 def test_kernel():
@@ -116,12 +112,16 @@ def test_bluez():
     dump_line("dev id %s" % bluetooth._bluetooth.hci_devid())
     dump_line("------------------------------------------------")
     try:
-        import ctypes
+        import ctypes, hcilib
         bt=ctypes.CDLL("libbluetooth.so")
         dump_line("%s" % bt)
-        r = bt.hci_get_route(0)
-        dump_line("hci_get_route %s" % r)
-        dump_line("%s" % bt.hci_open_dev(r))
+        di = bt.hci_get_route(0)
+        dump_line("hci_get_route %s, %s" % (di, ctypes.set_errno(0)))
+        dd = bt.hci_open_dev(di)
+        dump_line("hci_open_dev %s, %s" % (dd, ctypes.set_errno(0)))
+        addr = hcilib.bdaddr_t()
+        ret = bt.hci_devba(di, ctypes.byref(addr))
+        dump_line("hci_devba %s, %s, %s" % (ret, ctypes.set_errno(0), addr))
     except Exception, err:
         dump_error(err)
 
@@ -146,8 +146,12 @@ def test_android_api():
     def test_connection(method, address, channel):
         dump_line("testing %s on channel %s" %(address, channel))
         method = droid.__getattr__(method) 
-        dump_line("result: %s" % method(address, channel)) 
-        dump_line("read: %s" % droid.myBluetoothRead())
+        dump_line("result: %s" % method(address, channel))
+        time.sleep(1)
+        pending = droid.myBluetoothReadPending()
+        dump_line("pending bytes to read: %s" % pending) 
+        if pending > 0:
+            dump_line("read: %s" % droid.myBluetoothRead(pending))
         dump_line("disconnecting %s" % droid.myBluetoothDisconnect())
 
     dev = None
@@ -161,7 +165,7 @@ def test_android_api():
     test_connection("myBluetoothConnectRfcomm", dev, 1)
     test_connection("myBluetoothConnectL2CAP", dev, 0x1001)
     
-TESTS=[process_list, test_kernel, test_bluez, test_android_api]
+TESTS=[process_list, test_kernel, test_bluez, test_android_api, process_list]
 
 for test in TESTS:
     try:
