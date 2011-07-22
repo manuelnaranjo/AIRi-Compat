@@ -67,97 +67,115 @@ public class TestFacade extends RpcReceiver {
 
   @Override
   public void shutdown() {
-	  myBluetoothDisconnect();
+    myBluetoothDisconnect();
   }
   
   @Rpc(description = "Do a Bluetooth scan")
   public JSONArray bluetoothScan() throws InterruptedException{
-	  DiscoveryListener listener = new DiscoveryListener();
-	  BluetoothDiscoveryHelper helper = new BluetoothDiscoveryHelper(
-			  this.mService, listener);
-	  helper.startDiscovery();
-	  listener.mLatch.await(30, TimeUnit.SECONDS);
-	  helper.cancel(); 
-	  // needed because there's a bug in the BluetoothDiscoveryHelper
-	  // that's leaking it own broadcast receiver on successful scan
-	  // complete
-	  return listener.results;
+      DiscoveryListener listener = new DiscoveryListener();
+      BluetoothDiscoveryHelper helper = new BluetoothDiscoveryHelper(
+              this.mService, listener);
+      helper.startDiscovery();
+      listener.mLatch.await(30, TimeUnit.SECONDS);
+      helper.cancel(); 
+      // needed because there's a bug in the BluetoothDiscoveryHelper
+      // that's leaking it own broadcast receiver on successful scan
+      // complete
+      return listener.results;
   }
   
   @Rpc(description = "Disconnect any pending Bluetooth connection")
   public boolean myBluetoothDisconnect(){
-	  if (mSocket == null)
-		  return false;
-	  mConnection.stop();
-	  mSocket = null;
-	  return true;
+      if (mSocket == null)
+          return false;
+      mConnection.stop();
+      mSocket = null;
+      return true;
   }
   
   @Rpc(description="Do an RFcomm Bluetooth connection, igoring service resolving")
   public boolean myBluetoothConnectRfcomm(
-		  @RpcParameter(name="address") String address, 
-		  @RpcParameter(name="channel") Integer channel
-		  ) throws Exception{
-	  BluetoothDevice mDevice = mBluetoothAdapter.getRemoteDevice(address);
-	  ImprovedBluetoothDevice mIDevice = new ImprovedBluetoothDevice(mDevice);
-	  mSocket = mIDevice.createRfcommSocket(channel);
-	  mSocket.connect();
-	  mConnection = new BluetoothConnection(mSocket);
-	  return true;
+          @RpcParameter(name="address") String address, 
+          @RpcParameter(name="channel") Integer channel
+          ) throws Exception{
+      BluetoothSocket temp;
+      BluetoothDevice mDevice = mBluetoothAdapter.getRemoteDevice(address);
+      ImprovedBluetoothDevice mIDevice = new ImprovedBluetoothDevice(mDevice);
+      temp = mIDevice.createRfcommSocket(channel);
+      temp.connect();
+      mSocket = temp;
+      mConnection = new BluetoothConnection(mSocket);
+      return true;
   }
   
   @Rpc(description="Do an L2CAP Bluetooth Connection")
   public boolean myBluetoothConnectL2CAP(
-		  @RpcParameter(name="address") String address,
-		  @RpcParameter(name="channel") Integer channel 
-		  ) throws Exception{
-	  BluetoothDevice mDevice = mBluetoothAdapter.getRemoteDevice(address);
-	  ImprovedBluetoothDevice mIDevice = new ImprovedBluetoothDevice(mDevice);
-	  mSocket = mIDevice.createL2CAPSocket(channel);
-	  mConnection = new BluetoothConnection(mSocket);
-	  return true;
+          @RpcParameter(name="address") String address,
+          @RpcParameter(name="channel") Integer channel 
+          ) throws Exception{
+      BluetoothSocket temp;
+      BluetoothDevice mDevice = mBluetoothAdapter.getRemoteDevice(address);
+      ImprovedBluetoothDevice mIDevice = new ImprovedBluetoothDevice(mDevice);
+      temp = mIDevice.createL2CAPSocket(channel);
+      temp.connect();
+      mSocket = temp;
+      mConnection = new BluetoothConnection(mSocket);
+      return true;
   }
   
   @Rpc(description="Read from Bluetooth Connection")
-  public String myBluetoothRead() throws IOException{
-	  return mConnection.readLine();
+  public String myBluetoothReadLine() throws IOException{
+      return mConnection.readLine();
+  }
+  
+  @Rpc(description="Returns amount of available bytes to be read")
+  public int myBluetoothReadPending() throws IOException{
+      if (mConnection.readReady())
+          return mSocket.getInputStream().available();
+      return -1;
+  }
+  
+  @Rpc(description = "Read up to bufferSize ASCII characters.")
+  public String myBluetoothRead(
+            @RpcParameter(name = "bufferSize") @RpcDefault("4096") Integer bufferSize)
+        throws IOException {
+        return mConnection.read(bufferSize);
   }
   
   private class DiscoveryListener implements BluetoothDiscoveryListener{
-	JSONArray results;
-	CountDownLatch mLatch;
-	
-	public DiscoveryListener(){
-		mLatch = new CountDownLatch(1);
-		results = new JSONArray();
-	}
-	
-	private void addDevice(String name, String address, boolean bond){
-		try {
-			JSONObject res = new JSONObject();
-			res.put("name", name);
-			res.put("address", address);
-			res.put("bonded", bond);
-			results.put(res);
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}		
-		
-	}
-		  
-	@Override
-	public void addBondedDevice(String name, String address) {
-		this.addDevice(name, address, true);
-	}
-	
-	@Override
-	public void addDevice(String name, String address) {
-		this.addDevice(name, address, false);
-	}
-	
-	@Override
-	public void scanDone() {
-		this.mLatch.countDown();
-	}
+    JSONArray results;
+    CountDownLatch mLatch;
+    
+    public DiscoveryListener(){
+        mLatch = new CountDownLatch(1);
+        results = new JSONArray();
+    }
+    
+    private void addDevice(String name, String address, boolean bond){
+        try {
+            JSONObject res = new JSONObject();
+            res.put("name", name);
+            res.put("address", address);
+            res.put("bonded", bond);
+            results.put(res);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void addBondedDevice(String name, String address) {
+        this.addDevice(name, address, true);
+    }
+    
+    @Override
+    public void addDevice(String name, String address) {
+        this.addDevice(name, address, false);
+    }
+    
+    @Override
+    public void scanDone() {
+        this.mLatch.countDown();
+    }
   }
 }

@@ -33,12 +33,14 @@ import com.googlecode.android_scripting.ForegroundService;
 import com.googlecode.android_scripting.Log;
 import com.googlecode.android_scripting.NotificationIdFactory;
 import com.googlecode.android_scripting.ScriptLauncher;
+import com.googlecode.android_scripting.ScriptProcess;
 import com.googlecode.android_scripting.interpreter.Interpreter;
 import com.googlecode.android_scripting.interpreter.InterpreterConfiguration;
 import com.googlecode.android_scripting.interpreter.InterpreterUtils;
 import com.googlecode.android_scripting.interpreter.html.HtmlActivityTask;
 import com.googlecode.android_scripting.interpreter.html.HtmlInterpreter;
 import com.googlecode.android_scripting.facade.FacadeConfiguration;
+import com.googlecode.android_scripting.facade.TestFacade;
 import com.googlecode.android_scripting.jsonrpc.RpcReceiverManager;
 
 import java.io.File;
@@ -60,6 +62,7 @@ public class ScriptService extends ForegroundService {
 	private InterpreterConfiguration mInterpreterConfiguration;
 	private RpcReceiverManager mFacadeManager;
     private AndroidProxy mProxy;
+    private ScriptProcess mProcess;
     
 	public class LocalBinder extends Binder {
 		public ScriptService getService() {
@@ -133,7 +136,7 @@ public class ScriptService extends ForegroundService {
 			mProxy = new AndroidProxy(this, null, true);
 			mProxy.startLocal();
 			mLatch.countDown();
-			ScriptLauncher.launchScript(script, mInterpreterConfiguration,
+			mProcess = ScriptLauncher.launchScript(script, mInterpreterConfiguration,
 					mProxy, new Runnable() {
 						@Override
 						public void run() {
