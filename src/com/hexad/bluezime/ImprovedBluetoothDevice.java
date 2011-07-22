@@ -146,7 +146,7 @@ public class ImprovedBluetoothDevice {
         }
     }
     
-    public BluetoothSocket createLCAPSocket(int channel) throws Exception {
+    public BluetoothSocket createL2CAPSocket(int channel) throws Exception {
         if (_socketConstructor == null)
             throw new NoSuchMethodException("new BluetoothSocket");
         
@@ -161,7 +161,7 @@ public class ImprovedBluetoothDevice {
         }
     }
 
-    public BluetoothSocket createInsecureLCAPSocket(int channel) throws Exception {
+    public BluetoothSocket createInsecureL2CAPSocket(int channel) throws Exception {
         if (_socketConstructor == null)
             throw new NoSuchMethodException("new BluetoothSocket");
         
